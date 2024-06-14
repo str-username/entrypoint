@@ -15,11 +15,16 @@ type HTTPServer struct {
 // NewServer : create new server exemplar
 func NewServer(host string) *HTTPServer {
 	httpServer := &http.Server{Addr: host}
+	log.Info().Str("address", httpServer.Addr).Send()
 	return &HTTPServer{ServerStruct: httpServer}
 }
 
 // ServerStart : listen and serve
 func (httpServer *HTTPServer) ServerStart() error {
+	if err := httpServer.ServerStruct.ListenAndServe().Error(); err != "" {
+		panic(err)
+	}
+
 	return httpServer.ServerStruct.ListenAndServe()
 }
 
