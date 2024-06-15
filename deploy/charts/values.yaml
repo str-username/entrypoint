@@ -1,0 +1,22 @@
+name: ""
+annotations: {}
+replicas: 1
+revisionHistoryLimit: 10
+strategy: {}
+terminationGracePeriodSeconds: 60
+nodeSelector: {}
+tolerations: []
+affinity: {}
+volumes: []
+image: ""
+ports: []
+resources: {}
+volumeMounts: []
+service:
+  annotations: {}
+  ports: []
+ingress:
+  annotations: {}
+  className: ""
+  rules: []
+  tls: []

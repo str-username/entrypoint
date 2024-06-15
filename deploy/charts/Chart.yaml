@@ -1,0 +1,12 @@
+apiVersion: v2
+name: entrypoint
+description: A helm chart for entrypoint service
+version: 1.0.0
+appVersion: 1.0.0
+keywords:
+  - entrypoint
+maintainers:
+  - name: str-username
+    url: https://github.com/str-username
+kubeVersion: ">=1.25.0"
+deprecated: false
