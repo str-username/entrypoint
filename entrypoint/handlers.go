@@ -3,7 +3,6 @@ package entrypoint
 import (
 	"encoding/json"
 	"entrypoint/storage/mongodb"
-	"fmt"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"net/http"
@@ -34,38 +33,22 @@ func (h *HandlerV1Api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Info().Str("handle", "HandlerV1Api").Str("client", r.RemoteAddr).Msg("incoming request")
 }
 
-type document struct {
-	Region           string `json:"region"`
-	Protocol         string `json:"protocol"`
-	Maintenance      bool   `json:"maintenance"`
-	AllowedVersions  string `json:"allowedVersions"`
-	ServerParameters struct {
-		TickRate      string `json:"tickRate"`
-		TickRateValue struct {
-			Min     int16 `json:"min"`
-			Max     int16 `json:"max"`
-			Default int   `json:"default"`
-		} `json:"tick_rate_value"`
-	} `json:"server_parameters"`
-	ServerAddresses []string `json:"serverAddresses"`
-}
-
 // ServeHTTP /api/v1/backends handler realization
 func (h *DefaultHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	handleQuery := r.URL.Query()
+	query := r.URL.Query()
 	ctx := r.Context()
+
 	switch method := r.Method; method {
 	case http.MethodGet:
-		switch region := len(handleQuery.Get("region")); region > 0 {
+		switch region := len(query.Get("region")); region > 0 {
 		case true:
-			document, err := h.MongoClient.FindOne(ctx, h.Db, h.Coll, bson.M{"region": handleQuery.Get("region")})
+			findOneDoc, err := h.MongoClient.FindOne(ctx, h.Db, h.Coll, bson.M{"region": query.Get("region")})
 			if err != nil {
 				log.Fatal().Err(err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-
-			documentToJSON, err := bson.MarshalExtJSON(document, true, true)
+			documentToJSON, err := bson.MarshalExtJSON(findOneDoc, false, true)
 			if err != nil {
 				log.Fatal().Err(err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -80,27 +63,19 @@ func (h *DefaultHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "application/json":
 			doc := document{}
 			if err := json.NewDecoder(r.Body).Decode(&doc); err != nil {
-				// logging, return 500 Internal Server Error
-				fmt.Println(err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				log.Fatal().Err(err)
 				return
 			}
-
-			docToInsert, err := bson.Marshal(doc)
+			replaceOneDoc, err := h.MongoClient.ReplaceOne(ctx, h.Db, h.Coll, bson.M{"region": doc.Region}, doc)
 			if err != nil {
-				// logging, return 500 Internal Server Error
-				fmt.Println(err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				log.Fatal().Err(err)
 				return
 			}
-
-			insert, err := h.MongoClient.InsertOne(ctx, h.Db, h.Coll, docToInsert)
-			if err != nil {
-				// logging, return 500 Internal Server Error
-				fmt.Println(err)
-				return
-			}
-			// logging, return 201 Internal Server Error
-			fmt.Println(insert.InsertedID)
 			w.WriteHeader(http.StatusCreated)
+			log.Info().Interface("document", doc).Send()
+			log.Info().Interface("upsert", replaceOneDoc).Send()
 		default:
 			http.Error(w, "Content-type must be application/json", http.StatusBadRequest)
 		}

@@ -35,6 +35,7 @@ type MongoClient interface {
 	Disconnect(ctx context.Context) error
 	InsertOne(ctx context.Context, db, coll string, doc interface{}) (*mongo.InsertOneResult, error)
 	UpdateOne(ctx context.Context, db, coll string, filter, update interface{}) (*mongo.UpdateResult, error)
+	ReplaceOne(ctx context.Context, db, coll string, filter, replacement interface{}) (*mongo.UpdateResult, error)
 	DeleteOne(ctx context.Context, db, coll string, filter interface{}) (*mongo.DeleteResult, error)
 	FindOne(ctx context.Context, db, coll string, filter interface{}) (*bson.M, error)
 }
@@ -51,18 +52,25 @@ func (client *Client) UpdateOne(ctx context.Context, db, coll string, filter, up
 	return collection.UpdateOne(ctx, filter, update)
 }
 
+// ReplaceOne : implement replace one document method
+func (client *Client) ReplaceOne(ctx context.Context, db, coll string, filter, replacement interface{}) (*mongo.UpdateResult, error) {
+	collection := client.Mongodb.Database(db).Collection(coll)
+	replaceOptions := options.Replace().SetUpsert(true)
+	return collection.ReplaceOne(ctx, filter, replacement, replaceOptions)
+}
+
 // DeleteOne : implement delete one document method
 func (client *Client) DeleteOne(ctx context.Context, db, coll string, filter interface{}) (*mongo.DeleteResult, error) {
 	collection := client.Mongodb.Database(db).Collection(coll)
 	return collection.DeleteOne(ctx, filter)
 }
 
-// FindOne : implement fund one document method
+// FindOne : implement find one document method
 func (client *Client) FindOne(ctx context.Context, db, coll string, filter interface{}) (*bson.M, error) {
 	var result bson.M
-
+	findOneOptions := options.FindOne().SetProjection(bson.M{"_id": 0})
 	collection := client.Mongodb.Database(db).Collection(coll)
-	if err := collection.FindOne(ctx, filter).Decode(&result); err != nil {
+	if err := collection.FindOne(ctx, filter, findOneOptions).Decode(&result); err != nil {
 		return nil, err
 	}
 
